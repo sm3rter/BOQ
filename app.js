@@ -314,6 +314,7 @@
       '<div class="card"><h3>التصدير</h3><button class="btn pri blk" data-a="exportXlsx">' + I.xls + 'تصدير Excel</button></div>' +
       '<div class="card"><h3>نسخة احتياطية</h3><div class="btns"><button class="btn" data-a="exportJson">حفظ نسخة</button><button class="btn" data-a="importJson">استرجاع</button></div>' +
       '<p class="hint" style="padding:10px 0 0">البيانات محفوظة على الجهاز فقط. خد نسخة قبل ما تمسح بيانات Safari.</p></div>' +
+      '<div class="card"><h3>تحديث التطبيق</h3><button class="btn blk" data-a="hardRefresh">مسح الكاش وتحميل أحدث نسخة</button><p class="hint" style="padding:10px 0 0">بياناتك (الأماكن والبنود) مش بتتمسح.</p></div>' +
       '<div class="card"><h3>مسح</h3><button class="btn bad blk" data-a="resetAll">مسح كل البيانات</button></div>';
   }
   function render() {
@@ -615,6 +616,12 @@
     exportXlsx: function () { if (!S.places.length) { toast('ضيف مكان الأول'); return; } deliver(buildXlsx(), 'fire-boq-' + today() + '.xlsx'); },
     exportJson: function () { deliver(new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' }), 'fire-boq-backup-' + today() + '.json'); },
     importJson: function () { $('#imp').click(); },
+    hardRefresh: async function () {
+      toast('جاري المسح…');
+      try { var regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(function (r) { return r.unregister(); })); } catch (e) {}
+      try { var ks = await caches.keys(); await Promise.all(ks.map(function (k) { return caches.delete(k); })); } catch (e) {}
+      location.replace(location.pathname + '?r=' + Date.now());
+    },
     resetAll: function () { confirmSheet('مسح كل البيانات نهائياً؟', 'مسح', function () { S = emptyState(); save(); closeSheet(); UI.pid = null; render(0); toast('تم المسح'); }); }
   };
 
