@@ -360,8 +360,20 @@
   function chipHTML(c, fd, o, i, on) {
     return '<button class="chip' + (on ? ' on' : '') + '" data-a="opt" data-k="' + fd.k + '" data-i="' + i + '">' + (o.c ? '<i class="dot" style="background:' + o.c + '"></i>' : '') + esc(o.n ? o.v + ' ' + o.n : o.v) + '</button>';
   }
+  var isMiss = function (fd) { return !!(SH.miss && fd.req && !String(SH.f[fd.k] || '').trim()); };
+  function missing() { return catBy[SH.cat].f.filter(function (fd) { return fd.req && !String(SH.f[fd.k] || '').trim(); }); }
+  function drawSum() {
+    var hd = $('#hd'); if (!hd) return;
+    var c = catBy[SH.cat], miss = missing().map(function (fd) { return fd.l; });
+    var sp = specList(SH.cat, SH.f).map(function (x) { return x.t; });
+    if (Number(SH.f.pcs) > 0) sp.push(num(Number(SH.f.pcs)) + ' قطعة');
+    var t = titleOf({ cat: SH.cat, f: SH.f }), sub = miss.length ? 'ناقص: ' + miss.join('، ') : (sp.join(' · ') || 'جاهز للحفظ');
+    hd.innerHTML = CI[SH.cat] + '<span class="h-t"><b>' + (SH.id ? 'تعديل ' : '') + esc(t) + '</b><small class="' + (miss.length ? (SH.miss ? 'm bad' : 'm') : '') + '">' + esc(sub) + '</small></span>';
+    var cn = $('#cnt'); if (cn) cn.textContent = SH.added ? '✓ ' + SH.added : '';
+  }
+  function flash(sel, cls) { var el = $(sel); if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
   function chipsRow(c, fd) {
-    var opts = fieldOpts(c, fd), sel = SH.f[fd.k], found = false, h = '<div class="chips">';
+    var opts = fieldOpts(c, fd), sel = SH.f[fd.k], found = false, h = '<div class="chips' + (fd.t === 'dia' ? ' dia' : '') + (isMiss(fd) ? ' bad' : '') + '">';
     opts.forEach(function (o, i) { var on = sel === o.v; if (on) found = true; h += chipHTML(c, fd, o, i, on); });
     if (sel && !found) h += '<button class="chip on" data-a="opt" data-k="' + fd.k + '" data-i="-1">' + esc(sel) + '</button>';
     if (fd.t === 'dia' || fd.t === 'num') h += '<button class="chip more' + (SH.tg && SH.tg === fd.k ? ' on' : '') + '" data-a="tg" data-k="' + fd.k + '">' + (SH.tg === fd.k ? 'بكتب…' : 'غير ذلك') + '</button>';
@@ -376,7 +388,7 @@
     var c = catBy[SH.cat], h = '';
     c.f.forEach(function (fd) {
       if (fd.meta) return;
-      h += '<div class="fl">' + esc(fd.l) + (fd.req ? '<i></i>' : '') + '</div>';
+      h += '<div class="fl' + (isMiss(fd) ? ' bad' : '') + '">' + esc(fd.l) + (fd.req ? '<i class="rq">مطلوب</i>' : '') + '</div>';
       if (fd.t === 'text') { h += '<input class="in" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" id="f-' + fd.k + '" data-f="' + fd.k + '" placeholder="اكتب الاسم" value="' + esc(SH.f[fd.k] || '') + '" style="margin:0">'; return; }
       h += chipsRow(c, fd);
       if (SH.ci === fd.k) h += '<div class="ci"><input class="in" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" id="ci-in" placeholder="اكتب القيمة"><button class="btn pri" data-a="ciOk">إضافة</button></div>';
@@ -387,7 +399,7 @@
   }
   function drawSheet() {
     var c = catBy[SH.cat], editing = !!SH.id;
-    var head = '<div class="sh-h"><button class="ib" data-a="closeSheet" aria-label="رجوع">' + I.back + '</button><h2>' + CI[SH.cat] + (editing ? 'تعديل ' + esc(c.n) : 'بند جديد') + '</h2>' +
+    var head = '<div class="sh-h"><button class="ib" data-a="closeSheet" aria-label="رجوع">' + I.back + '</button><h2 id="hd"></h2><span class="cnt" id="cnt"></span>' +
       (editing ? '<button class="ib" data-a="delItem" aria-label="حذف">' + I.trash + '</button>' : '') + '</div>';
     var strip = editing ? '' : '<div class="strip" id="strip">' + CATS.map(function (x) { return '<button class="cbtn' + (x.k === SH.cat ? ' on' : '') + '" data-a="cat" data-v="' + x.k + '">' + CI[x.k] + x.n + '</button>'; }).join('') + '</div>';
     var keys = ['7', '8', '9', 'back', '4', '5', '6', 'plus', '1', '2', '3', '.', '0', 'clr'];
@@ -395,10 +407,10 @@
       '<button class="k go" data-a="go" id="k-go"></button></div>';
     var keep = $('#strip') ? $('#strip').scrollLeft : 0;
     showSheet(head + strip + '<div class="fields" id="fields"></div><div class="pbar" id="pbar"></div><div class="qwrap" id="qwrap"></div>' + kp, 'tall');
-    $('#fields').innerHTML = fieldsHTML(); $('#pbar').innerHTML = pbarHTML(); drawQty();
+    $('#fields').innerHTML = fieldsHTML(); $('#pbar').innerHTML = pbarHTML(); drawQty(); drawSum();
     if ($('#strip')) { var on = $('#strip .on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' }); }
   }
-  function drawFields() { var f = $('#fields'); if (!f) return; var st = f.scrollTop; f.innerHTML = fieldsHTML(); f.scrollTop = st; var pb = $('#pbar'); if (pb) pb.innerHTML = pbarHTML(); }
+  function drawFields() { var f = $('#fields'); if (!f) return; var st = f.scrollTop; f.innerHTML = fieldsHTML(); f.scrollTop = st; var pb = $('#pbar'); if (pb) pb.innerHTML = pbarHTML(); drawSum(); }
   function qPreview() {
     if (SH.tg || SH.qs.indexOf('+') < 0) return '';
     var v = parseQty(SH.qs.replace(/\+$/, '')); return isNaN(v) ? '' : '= ' + num(v);
@@ -407,6 +419,7 @@
     var c = catBy[SH.cat], q = $('#qwrap'); if (!q) return;
     var tgf = SH.tg && c.f.find(function (x) { return x.k === SH.tg; });
     var label = tgf ? tgf.l : c.ql, val = tgf ? (SH.tgs || '') : SH.qs, u = tgf ? '' : (SH.cat === 'other' ? (SH.f.unit || 'عدد') : c.u);
+    q.classList.toggle('tg', !!tgf);
     q.innerHTML = '<div class="ql">' + esc(label) + '<small>' + (tgf ? 'اكتب القيمة واضغط تم' : qPreview()) + '</small></div><div class="qv' + (val ? '' : ' ph') + '">' + esc(val || '0') + '</div><div class="qu">' + esc(u) + '</div>';
     var go = $('#k-go'); if (go) go.textContent = tgf ? 'تم' : (SH.id ? 'حفظ' : 'حفظ والتالي');
     var pl = $('#k-plus'); if (pl) { pl.textContent = tgf ? (tgf.t === 'dia' ? '/' : '') : '+'; pl.classList.toggle('off', !!tgf && tgf.t !== 'dia'); }
@@ -450,7 +463,7 @@
   function commit() {
     var c = catBy[SH.cat], p = S.places.find(function (x) { return x.id === SH.pid; });
     for (var i = 0; i < c.f.length; i++) {
-      var fd = c.f[i]; if (fd.req && !String(SH.f[fd.k] || '').trim()) return { err: 'اختار: ' + fd.l };
+      var fd = c.f[i]; if (fd.req && !String(SH.f[fd.k] || '').trim()) return { err: 'اختار: ' + fd.l, miss: true };
     }
     var qty = parseQty(SH.qs.replace(/\+$/, ''));
     if (!(qty > 0)) return { err: 'اكتب الكمية' };
@@ -473,10 +486,17 @@
     save(); return { msg: msg };
   }
   function saveItem() {
-    var r = commit(); if (r.err) { toast(r.err); return; }
+    var r = commit();
+    if (r.err) {
+      toast(r.err);
+      if (r.miss) { SH.miss = true; drawFields(); var b = $('#fields .fl.bad'); if (b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      else flash('#qwrap', 'bad');
+      return;
+    }
+    SH.miss = false;
     if (SH.id) { closeSheet(); render(); toast(r.msg); return; }
-    SH.qs = ''; SH.note = ''; SH.showNote = false; SH.approx = false; SH.fresh = false; delete SH.f.pcs;
-    drawFields(); drawQty(); toast(r.msg); render();
+    SH.qs = ''; SH.note = ''; SH.showNote = false; SH.approx = false; SH.fresh = false; delete SH.f.pcs; SH.added = (SH.added || 0) + 1;
+    drawFields(); drawQty(); flash('#hd', 'flash'); toast(r.msg); render();
   }
   // الخروج من شيت البند يحفظ تلقائياً لو فيه كمية مكتوبة
   function exitItem() {
@@ -583,7 +603,7 @@
       SH.cat = t.dataset.v; SH.f = defaultsFor(catBy[SH.cat]); SH.tg = null; SH.ci = null; SH.tgs = '';
       var strip = $('#strip'), sl = strip ? strip.scrollLeft : 0;
       document.querySelectorAll('#strip .cbtn').forEach(function (b) { b.classList.toggle('on', b.dataset.v === SH.cat); });
-      var h2 = $('.sh-h h2'); if (h2) h2.innerHTML = CI[SH.cat] + 'بند جديد';
+      SH.miss = false;
       drawFields(); drawQty(); $('#fields').scrollTop = 0;
     },
     opt: function (t) {
@@ -688,6 +708,18 @@
       }).catch(function () {});
     });
   }
+
+  // سحب المقبض أو الهيدر لأسفل يقفل النافذة (ويحفظ لو فيه كمية)
+  (function () {
+    var y0 = null, sh = null;
+    document.addEventListener('touchstart', function (e) { var g = e.target.closest('.grab,.sh-h'); if (!g || e.touches.length !== 1) return; sh = g.closest('.sheet'); y0 = e.touches[0].clientY; }, { passive: true });
+    document.addEventListener('touchmove', function (e) { if (y0 == null || !sh) return; var dy = e.touches[0].clientY - y0; if (dy > 0) { sh.style.transition = 'none'; sh.style.transform = 'translateY(' + dy + 'px)'; } }, { passive: true });
+    document.addEventListener('touchend', function (e) {
+      if (y0 == null || !sh) return;
+      var dy = e.changedTouches[0].clientY - y0, el = sh; y0 = null; sh = null;
+      if (dy > 90) A.closeSheet(); else { el.style.transition = 'transform .18s'; el.style.transform = ''; }
+    });
+  })();
 
   window.__fireboq = { state: function () { return S; }, build: buildXlsx };
   render(0);
