@@ -15,7 +15,8 @@
     { k: 'pipe', n: 'ماسورة', u: 'م', ql: 'الطول (م)', f: [dia(null, 1),
       { k: 'mat', l: 'الخامة', o: ['أسود Sch40', 'مجلفن Sch40', 'أسود Sch10', 'HDPE', 'CPVC'], def: 'أسود Sch40' },
       { k: 'jt', l: 'التوصيل', o: JT },
-      { k: 'ins', l: 'التركيب', o: ['ظاهر', 'مدفون', 'فوق السقف'] }] },
+      { k: 'ins', l: 'التركيب', o: ['ظاهر', 'مدفون', 'فوق السقف'] },
+      { k: 'pcs', l: 'عدد القطع (اختياري)', t: 'num', o: ['1', '2', '3', '4', '5', '6', '10', '12'], meta: 1 }] },
     { k: 'sprinkler', n: 'رشاش', u: 'عدد', ql: 'العدد', f: [
       { k: 'type', l: 'النوع', req: 1, o: ['متدلي Pendent', 'قائم Upright', 'جانبي Sidewall', 'مخفي Concealed', 'جاف Dry'] },
       { k: 'temp', l: 'درجة حرارة الزجاجة', o: BULB },
@@ -196,18 +197,20 @@
   function unitOf(r) { return r.cat === 'other' ? (r.f.unit || 'عدد') : catBy[r.cat].u; }
   function rowKey(cat, f) {
     var c = catBy[cat];
-    return cat + '|' + c.f.map(function (fd) { var v = String(f[fd.k] || '').trim(); return fd.k === 'name' ? v.toLowerCase() : v; }).join('~');
+    return cat + '|' + c.f.filter(function (fd) { return !fd.meta; }).map(function (fd) { var v = String(f[fd.k] || '').trim(); return fd.k === 'name' ? v.toLowerCase() : v; }).join('~');
   }
   function diaTxt(f) { return f.dia ? (f.dia2 ? f.dia + '″×' + f.dia2 + '″' : f.dia + '″') : (f.dia2 ? '×' + f.dia2 + '″' : ''); }
   function titleOf(r) { var c = catBy[r.cat], d = diaTxt(r.f); return (r.cat === 'other' ? (r.f.name || 'بند') : c.n) + (d && r.cat !== 'other' ? ' ' + d : ''); }
   function specList(cat, f) {
     var c = catBy[cat], out = [];
-    c.f.forEach(function (fd) { if (fd.main || !f[fd.k]) return; out.push({ t: optText(c, fd.k, f[fd.k]), c: optColor(c, fd.k, f[fd.k]) }); });
+    c.f.forEach(function (fd) { if (fd.main || fd.meta || !f[fd.k]) return; out.push({ t: optText(c, fd.k, f[fd.k]), c: optColor(c, fd.k, f[fd.k]) }); });
     return out;
   }
   var specTxt = function (cat, f) { return specList(cat, f).map(function (x) { return x.t; }).join(' - '); };
-  function tagsHTML(cat, f, approx) {
+  function tagsHTML(cat, f, approx, pcs) {
+    if (arguments.length < 4) pcs = f.pcs;
     var h = specList(cat, f).map(function (s) { return '<span class="tag">' + (s.c ? '<i class="dot" style="background:' + s.c + '"></i>' : '') + esc(s.t) + '</span>'; });
+    if (Number(pcs) > 0) h.unshift('<span class="tag">' + num(Number(pcs)) + ' قطعة</span>');
     if (approx) h.push('<span class="tag ap">تقريبي</span>');
     return h.length ? '<span class="tags">' + h.join('') + '</span>' : '';
   }
@@ -221,8 +224,8 @@
     var m = {};
     S.places.forEach(function (p) {
       p.rows.forEach(function (r) {
-        var k = rowKey(r.cat, r.f), e = m[k] || (m[k] = { cat: r.cat, f: r.f, unit: unitOf(r), total: 0, per: {}, approx: false });
-        e.total += r.qty; e.per[p.id] = (e.per[p.id] || 0) + r.qty; if (r.approx) e.approx = true;
+        var k = rowKey(r.cat, r.f), e = m[k] || (m[k] = { cat: r.cat, f: Object.assign({}, r.f, { pcs: undefined }), unit: unitOf(r), total: 0, pcs: 0, per: {}, approx: false });
+        e.total += r.qty; e.pcs += Number(r.f.pcs) || 0; e.per[p.id] = (e.per[p.id] || 0) + r.qty; if (r.approx) e.approx = true;
       });
     });
     return Object.keys(m).map(function (k) { return m[k]; }).sort(cmp);
@@ -281,7 +284,7 @@
       }
       var open = UI.open['l' + i];
       var title = titleOf({ cat: e.cat, f: e.f });
-      h += '<div class="line"><button data-a="toggle" data-k="l' + i + '"><span class="mn"><span class="tt">' + esc(title) + '</span>' + tagsHTML(e.cat, e.f, e.approx) + '</span>' +
+      h += '<div class="line"><button data-a="toggle" data-k="l' + i + '"><span class="mn"><span class="tt">' + esc(title) + '</span>' + tagsHTML(e.cat, e.f, e.approx, e.pcs) + '</span>' +
         '<span class="qv" style="align-items:flex-end;display:flex;flex-direction:column"><b class="num" style="font-size:21px">' + num(e.total) + '</b><small style="color:var(--dim);font-size:12px">' + esc(e.unit) + '</small></span></button>';
       if (open) h += '<div class="per">' + S.places.filter(function (p) { return e.per[p.id]; }).map(function (p) { return '<div><span>' + esc(p.name) + '</span><b class="num">' + num(e.per[p.id]) + '</b></div>'; }).join('') + '</div>';
       h += '</div>';
@@ -329,7 +332,6 @@
     document.body.classList.add('sheeted');
   }
   function closeSheet() { $('#sheet-root').innerHTML = ''; SH = null; TXT = null; CONF = null; document.body.classList.remove('sheeted'); }
-  var PLACE_IDEAS = ['جمالون الصيانة', 'مستودع تخزين 1', 'مستودع تخزين 2', 'المخزن العام – جزء 1', 'المخزن العام – جزء 2', 'المخزن العام – جزء 3', 'البنزينة الداخلية', 'غرفة المضخات والخزانات'];
   function textSheet(title, val, cb, ph, ideas) {
     TXT = cb;
     var used = {}; S.places.forEach(function (p) { used[p.name] = 1; });
@@ -359,18 +361,25 @@
   function chipHTML(c, fd, o, i, on) {
     return '<button class="chip' + (on ? ' on' : '') + '" data-a="opt" data-k="' + fd.k + '" data-i="' + i + '">' + (o.c ? '<i class="dot" style="background:' + o.c + '"></i>' : '') + esc(o.n ? o.v + ' ' + o.n : o.v) + '</button>';
   }
+  function chipsRow(c, fd) {
+    var opts = fieldOpts(c, fd), sel = SH.f[fd.k], found = false, h = '<div class="chips">';
+    opts.forEach(function (o, i) { var on = sel === o.v; if (on) found = true; h += chipHTML(c, fd, o, i, on); });
+    if (sel && !found) h += '<button class="chip on" data-a="opt" data-k="' + fd.k + '" data-i="-1">' + esc(sel) + '</button>';
+    if (fd.t === 'dia' || fd.t === 'num') h += '<button class="chip more' + (SH.tg && SH.tg === fd.k ? ' on' : '') + '" data-a="tg" data-k="' + fd.k + '">' + (SH.tg === fd.k ? 'بكتب…' : 'غير ذلك') + '</button>';
+    else h += '<button class="chip more" data-a="ci" data-k="' + fd.k + '">+ غير ذلك</button>';
+    return h + '</div>';
+  }
+  function pbarHTML() {
+    var c = catBy[SH.cat], fd = c.f.find(function (x) { return x.meta; });
+    return fd ? '<div class="fl">' + esc(fd.l) + '</div>' + chipsRow(c, fd) : '';
+  }
   function fieldsHTML() {
     var c = catBy[SH.cat], h = '';
     c.f.forEach(function (fd) {
+      if (fd.meta) return;
       h += '<div class="fl">' + esc(fd.l) + (fd.req ? '<i></i>' : '') + '</div>';
       if (fd.t === 'text') { h += '<input class="in" id="f-' + fd.k + '" data-f="' + fd.k + '" placeholder="اكتب الاسم" value="' + esc(SH.f[fd.k] || '') + '" style="margin:0">'; return; }
-      var opts = fieldOpts(c, fd), sel = SH.f[fd.k], found = false;
-      h += '<div class="chips">';
-      opts.forEach(function (o, i) { var on = sel === o.v; if (on) found = true; h += chipHTML(c, fd, o, i, on); });
-      if (sel && !found) h += '<button class="chip on" data-a="opt" data-k="' + fd.k + '" data-i="-1">' + esc(sel) + '</button>';
-      if (fd.t === 'dia' || fd.t === 'num') h += '<button class="chip more' + (SH.tg && SH.tg === fd.k ? ' on' : '') + '" data-a="tg" data-k="' + fd.k + '">' + (SH.tg === fd.k ? 'بكتب…' : 'غير ذلك') + '</button>';
-      else h += '<button class="chip more" data-a="ci" data-k="' + fd.k + '">+ غير ذلك</button>';
-      h += '</div>';
+      h += chipsRow(c, fd);
       if (SH.ci === fd.k) h += '<div class="ci"><input class="in" id="ci-in" placeholder="اكتب القيمة"><button class="btn pri" data-a="ciOk">إضافة</button></div>';
     });
     h += '<div class="fl">ملاحظات</div><div class="chips"><button class="chip' + (SH.approx ? ' on' : '') + '" data-a="approx">تقريبي</button><button class="chip' + (SH.showNote ? ' on' : '') + '" data-a="noteT">ملاحظة</button></div>';
@@ -381,17 +390,17 @@
     var c = catBy[SH.cat], editing = !!SH.id;
     var head = '<div class="sh-h"><h2>' + CI[SH.cat] + (editing ? 'تعديل ' + esc(c.n) : 'بند جديد') + '</h2>' +
       (editing ? '<button class="ib" data-a="delItem" aria-label="حذف">' + I.trash + '</button>' : '') +
-      '<button class="btn" style="height:42px;padding:0 16px" data-a="closeSheet">' + (editing ? 'إلغاء' : 'تم') + '</button></div>';
+      '<button class="btn" style="height:42px;padding:0 16px" data-a="closeSheet">' + 'تم' + '</button></div>';
     var strip = editing ? '' : '<div class="strip" id="strip">' + CATS.map(function (x) { return '<button class="cbtn' + (x.k === SH.cat ? ' on' : '') + '" data-a="cat" data-v="' + x.k + '">' + CI[x.k] + x.n + '</button>'; }).join('') + '</div>';
     var keys = ['7', '8', '9', 'back', '4', '5', '6', 'plus', '1', '2', '3', '.', '0', 'clr'];
     var kp = '<div class="kp" id="kp">' + keys.map(function (k) { return '<button class="k' + (/^[a-z]/.test(k) ? ' op' : '') + '" data-a="key" data-v="' + k + '" id="k-' + k + '">' + ({ back: '⌫', plus: '+', clr: 'مسح' }[k] || k) + '</button>'; }).join('') +
       '<button class="k go" data-a="go" id="k-go"></button></div>';
     var keep = $('#strip') ? $('#strip').scrollLeft : 0;
-    showSheet(head + strip + '<div class="fields" id="fields"></div><div class="qwrap" id="qwrap"></div>' + kp, 'tall');
-    $('#fields').innerHTML = fieldsHTML(); drawQty();
+    showSheet(head + strip + '<div class="fields" id="fields"></div><div class="pbar" id="pbar"></div><div class="qwrap" id="qwrap"></div>' + kp, 'tall');
+    $('#fields').innerHTML = fieldsHTML(); $('#pbar').innerHTML = pbarHTML(); drawQty();
     if ($('#strip')) { var on = $('#strip .on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' }); }
   }
-  function drawFields() { var f = $('#fields'); if (!f) return; var st = f.scrollTop; f.innerHTML = fieldsHTML(); f.scrollTop = st; }
+  function drawFields() { var f = $('#fields'); if (!f) return; var st = f.scrollTop; f.innerHTML = fieldsHTML(); f.scrollTop = st; var pb = $('#pbar'); if (pb) pb.innerHTML = pbarHTML(); }
   function qPreview() {
     if (SH.tg || SH.qs.indexOf('+') < 0) return '';
     var v = parseQty(SH.qs.replace(/\+$/, '')); return isNaN(v) ? '' : '= ' + num(v);
@@ -434,33 +443,48 @@
     var list = S.custom[key] || (S.custom[key] = []);
     if (!have && list.indexOf(val) < 0) list.push(val);
   }
-  function saveItem() {
+  function mergeRow(a, b) {
+    a.qty = Math.round((a.qty + b.qty) * 1000) / 1000; a.approx = a.approx || b.approx;
+    var pa = Number(a.f.pcs) || 0, pb = Number(b.f.pcs) || 0;
+    if (pa + pb > 0) a.f.pcs = String(pa + pb); else delete a.f.pcs;
+    if (b.note && !a.note) a.note = b.note;
+  }
+  function commit() {
     var c = catBy[SH.cat], p = S.places.find(function (x) { return x.id === SH.pid; });
     for (var i = 0; i < c.f.length; i++) {
-      var fd = c.f[i]; if (fd.req && !String(SH.f[fd.k] || '').trim()) { toast('اختار: ' + fd.l); return; }
+      var fd = c.f[i]; if (fd.req && !String(SH.f[fd.k] || '').trim()) return { err: 'اختار: ' + fd.l };
     }
     var qty = parseQty(SH.qs.replace(/\+$/, ''));
-    if (!(qty > 0)) { toast('اكتب الكمية'); return; }
+    if (!(qty > 0)) return { err: 'اكتب الكمية' };
     var f = {}; c.f.forEach(function (fd) { var v = String(SH.f[fd.k] || '').trim(); if (v) f[fd.k] = v; });
-    var data = { cat: SH.cat, f: f, qty: qty, note: String(SH.note || '').trim(), approx: SH.approx };
-    var lf = Object.assign({}, f); if (SH.cat === 'other') delete lf.name;
+    if (f.pcs && !(Number(f.pcs) > 0)) delete f.pcs;
+    var data = { cat: SH.cat, f: f, qty: qty, note: String(SH.note || '').trim(), approx: SH.approx }, msg;
+    var lf = Object.assign({}, f); delete lf.pcs; if (SH.cat === 'other') delete lf.name;
     S.last[SH.cat] = lf; S.lastCat = SH.cat;
-    var msg;
     if (SH.id) {
       var row = p.rows.find(function (x) { return x.id === SH.id; });
       Object.assign(row, data);
       var k = rowKey(row.cat, row.f), twin = p.rows.find(function (x) { return x !== row && rowKey(x.cat, x.f) === k; });
-      if (twin) { twin.qty = Math.round((twin.qty + row.qty) * 1000) / 1000; twin.approx = twin.approx || row.approx; p.rows = p.rows.filter(function (x) { return x !== row; }); }
+      if (twin) { mergeRow(twin, row); p.rows = p.rows.filter(function (x) { return x !== row; }); }
       msg = 'تم الحفظ';
     } else {
       var k2 = rowKey(data.cat, data.f), same = p.rows.find(function (x) { return rowKey(x.cat, x.f) === k2; });
-      if (same) { same.qty = Math.round((same.qty + qty) * 1000) / 1000; same.approx = same.approx || data.approx; if (data.note) same.note = data.note; msg = 'اتجمع على البند — الإجمالي ' + num(same.qty); }
+      if (same) { mergeRow(same, data); msg = 'اتجمع على البند — الإجمالي ' + num(same.qty); }
       else { data.id = uid(); p.rows.push(data); msg = 'تم حفظ ' + titleOf(data) + ' — ' + num(qty); }
     }
-    save();
-    if (SH.id) { closeSheet(); render(); toast(msg); return; }
-    SH.qs = ''; SH.note = ''; SH.showNote = false; SH.approx = false; SH.fresh = false;
-    drawFields(); drawQty(); toast(msg); render();
+    save(); return { msg: msg };
+  }
+  function saveItem() {
+    var r = commit(); if (r.err) { toast(r.err); return; }
+    if (SH.id) { closeSheet(); render(); toast(r.msg); return; }
+    SH.qs = ''; SH.note = ''; SH.showNote = false; SH.approx = false; SH.fresh = false; delete SH.f.pcs;
+    drawFields(); drawQty(); toast(r.msg); render();
+  }
+  // الخروج من شيت البند يحفظ تلقائياً لو فيه كمية مكتوبة
+  function exitItem() {
+    var msg = null;
+    if (SH && $('#fields') && SH.qs.replace(/\+$/, '')) { var r = commit(); msg = r.err ? 'ما اتحفظش — ' + r.err : r.msg; }
+    closeSheet(); render(); if (msg) toast(msg);
   }
 
   /* ========== التصدير ========== */
@@ -471,23 +495,24 @@
   function buildXlsx() {
     var H = function (arr) { return arr.map(function (v) { return { v: v, st: 'h' }; }); };
     var agg = aggregate(), sheets = [];
-    var head = ['البند', 'المواصفات', 'القطر (بوصة)'].concat(S.places.map(function (p) { return p.name; }), ['الإجمالي', 'الوحدة']);
+    var head = ['البند', 'المواصفات', 'القطر (بوصة)'].concat(S.places.map(function (p) { return p.name; }), ['الإجمالي', 'الوحدة', 'عدد القطع']);
     var rows = [H(head)];
     agg.forEach(function (e, i) {
       var line = [e.cat === 'other' ? (e.f.name || 'بند') : catBy[e.cat].n, specTxt(e.cat, e.f) + (e.approx ? (specTxt(e.cat, e.f) ? ' - ' : '') + 'تقريبي' : ''), e.cat === 'other' ? '' : dlCell(e.f)];
       S.places.forEach(function (p) { line.push(e.per[p.id] ? Math.round(e.per[p.id] * 1000) / 1000 : ''); });
-      line.push({ v: Math.round(e.total * 1000) / 1000, f: 'SUM(D' + (i + 2) + ':' + xlsxColLetter(2 + S.places.length) + (i + 2) + ')' }, e.unit);
+      line.push({ v: Math.round(e.total * 1000) / 1000, f: 'SUM(D' + (i + 2) + ':' + xlsxColLetter(2 + S.places.length) + (i + 2) + ')' }, e.unit, e.pcs || '');
       rows.push(line);
     });
-    sheets.push({ name: 'الإجمالي', widths: [18, 34, 12].concat(S.places.map(function () { return 14; }), [12, 9]), rows: rows });
+    sheets.push({ name: 'الإجمالي', widths: [18, 34, 12].concat(S.places.map(function () { return 14; }), [12, 9, 11]), rows: rows });
     S.places.forEach(function (p) {
       var rs = [H(['البند', 'المواصفات', 'القطر (بوصة)', 'الطول (م)', 'العدد', 'ملاحظات'])], pipe = 0, cnt = 0;
       p.rows.slice().sort(cmp).forEach(function (r) {
         var u = unitOf(r), isLen = u === 'م', notes = [];
         if (!isLen && u !== 'عدد') notes.push('الوحدة: ' + u);
         if (r.approx) notes.push('تقريبي'); if (r.note) notes.push(r.note);
-        if (isLen) pipe += r.qty; else cnt += r.qty;
-        rs.push([r.cat === 'other' ? (r.f.name || 'بند') : catBy[r.cat].n, specTxt(r.cat, r.f), r.cat === 'other' ? '' : dlCell(r.f), isLen ? r.qty : '', isLen ? '' : r.qty, notes.join(' - ')]);
+        var pc = Number(r.f.pcs) || 0;
+        if (isLen) { pipe += r.qty; cnt += pc; } else cnt += r.qty;
+        rs.push([r.cat === 'other' ? (r.f.name || 'بند') : catBy[r.cat].n, specTxt(r.cat, r.f), r.cat === 'other' ? '' : dlCell(r.f), isLen ? r.qty : '', isLen ? (pc || '') : r.qty, notes.join(' - ')]);
       });
       var n = rs.length;
       rs.push([{ v: 'الإجمالي', st: 't' }, { v: '', st: 't' }, { v: '', st: 't' }, { v: pipe, f: 'SUM(D2:D' + n + ')', st: 't' }, { v: cnt, f: 'SUM(E2:E' + n + ')', st: 't' }, { v: '', st: 't' }]);
@@ -540,9 +565,8 @@
     openP: function (t) { UI.pid = t.dataset.id; render(0); },
     back: function () { UI.pid = null; render(0); },
     addPlace: function () {
-      textSheet('اسم المكان', '', function (val) { var p = { id: uid(), name: val, rows: [] }; S.places.push(p); save(); closeSheet(); UI.tab = 'places'; UI.pid = p.id; render(0); }, 'مثال: مستودع 3', PLACE_IDEAS);
+      textSheet('اسم المكان', '', function (val) { var p = { id: uid(), name: val, rows: [] }; S.places.push(p); save(); closeSheet(); UI.tab = 'places'; UI.pid = p.id; render(0); }, 'مثال: مستودع 3');
     },
-    sugg: function (t) { var i = $('#t-in'); i.value = t.dataset.v; i.focus(); },
     pMenu: function () {
       showSheet('<div class="sh-h"><h2>' + esc(curP().name) + '</h2></div><div class="sh-b"><div class="opts"><button class="btn" data-a="pRename">تغيير الاسم</button><button class="btn" data-a="pDup">نسخ المكان بكل بنوده</button><button class="btn bad" data-a="pDel">حذف المكان</button></div></div>');
     },
@@ -583,7 +607,7 @@
     noteT: function () { SH.showNote = !SH.showNote; drawFields(); if (SH.showNote) { var i = $('#f-note'); if (i) i.focus(); } },
     key: function (t) { pressKey(t.dataset.v); },
     go: function () { if (SH.tg) commitTarget(); else saveItem(); },
-    closeSheet: function () { closeSheet(); render(); },
+    closeSheet: function () { if (SH && $('#fields')) exitItem(); else { closeSheet(); render(); } },
     delItem: function () {
       var id = SH.id, pid = SH.pid;
       confirmSheet('حذف هذا البند؟', 'حذف', function () { var p = S.places.find(function (x) { return x.id === pid; }); p.rows = p.rows.filter(function (x) { return x.id !== id; }); save(); closeSheet(); render(); toast('تم الحذف'); });
