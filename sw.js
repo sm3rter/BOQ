@@ -1,6 +1,6 @@
 /* Service worker: يعمل بدون إنترنت، لكن الأولوية دايماً للنسخة الأحدث من السيرفر.
    غيّر رقم الإصدار V مع كل تحديث: بيتمسح الكاش القديم كله وبتتحمّل الملفات الجديدة تلقائي. */
-const V = 'fireboq-v2.6';
+const V = 'BOQ123';
 const ASSETS = [
   './', 'index.html', 'style.css', 'app.js', 'xlsx.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
