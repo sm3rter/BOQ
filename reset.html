@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>تحديث التطبيق</title>
+<style>html,body{height:100%;margin:0;background:#0e1217;color:#e9e5db;font:16px/1.6 system-ui,-apple-system,Tahoma,sans-serif}body{display:grid;place-items:center;text-align:center;padding:24px}small{color:#8d97a5}</style>
+</head>
+<body><div><p id="m">جاري مسح الكاش القديم…</p><small>بياناتك (الأماكن والبنود) لا تتأثر.</small></div>
+<script>
+(async function () {
+  try { var regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(function (r) { return r.unregister(); })); } catch (e) {}
+  try { var ks = await caches.keys(); await Promise.all(ks.map(function (k) { return caches.delete(k); })); } catch (e) {}
+  document.getElementById('m').textContent = 'تم. بيفتح التطبيق بأحدث نسخة…';
+  setTimeout(function () { location.replace('./?r=' + Date.now()); }, 700);
+})();
+</script>
+</body>
+</html>
