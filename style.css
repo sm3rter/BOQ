@@ -52,7 +52,7 @@ b{font-weight:700}
 .empty{margin:64px 28px;text-align:center;color:var(--dim)}
 .empty h2{margin:14px 0 6px;color:var(--tx);font-size:19px}
 .empty p{margin:0 0 20px;font-size:15px}
-.empty .ico{width:44px;height:44px;color:var(--brass)}
+.empty .ico{width:44px;height:44px;color:var(--onbrass)}
 
 /* buttons */
 .btn{height:50px;padding:0 20px;border-radius:14px;background:var(--s2);border:1px solid var(--line);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px}
