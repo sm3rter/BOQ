@@ -1,5 +1,5 @@
 /* Service worker: يعمل بدون إنترنت. غيّر رقم الإصدار V عند أي تحديث لإجبار المتصفح على جلب الملفات الجديدة. */
-const V = 'fireboq-v2.3';
+const V = 'fireboq-v2.32';
 const ASSETS = [
   './', 'index.html', 'style.css', 'app.js', 'xlsx.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
